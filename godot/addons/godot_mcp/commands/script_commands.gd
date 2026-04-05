@@ -126,20 +126,24 @@ func create_csharp_script(params: Dictionary) -> Dictionary:
 	f.store_string(content)
 	f.close()
 
-	EditorInterface.get_resource_filesystem().scan()
+	EditorInterface.get_resource_filesystem().scan_sources()
 
 	if not node_path.is_empty():
 		var node := _get_node(node_path)
 		if not node:
 			return _error("NODE_NOT_FOUND", "Script created but node not found: %s" % node_path)
 
-		# Wait for the filesystem scan to register the new file
-		await Engine.get_main_loop().process_frame
-		await Engine.get_main_loop().process_frame
-
-		var script := load(script_path) as Script
+		var script := ResourceLoader.load(script_path, "", ResourceLoader.CACHE_MODE_IGNORE)
 		if not script:
-			return _error("LOAD_FAILED", "Script created but could not load: %s" % script_path)
+			# C# scripts need Godot to compile them first — file was created,
+			# use attach_script after Godot finishes importing.
+			return _success({
+				"script_path": script_path,
+				"class_name": class_name_param,
+				"base_class": base_class,
+				"attached": false,
+				"note": "Script created. Call attach_script after Godot finishes importing the .cs file.",
+			})
 
 		node.set_script(script)
 
